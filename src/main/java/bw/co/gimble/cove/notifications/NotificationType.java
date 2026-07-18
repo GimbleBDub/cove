@@ -1,0 +1,12 @@
+package bw.co.gimble.cove.notifications;
+
+public enum NotificationType {
+    WELCOME,
+    ORGANISATION_CREATED,
+    ORGANISATION_JOIN_REQUESTED,
+    ORGANISATION_JOIN_APPROVED,
+    ORGANISATION_JOIN_REJECTED,
+    ROLE_ASSIGNED,
+    ROLE_REVOKED,
+    KYC_DOCUMENT_SUBMITTED
+}

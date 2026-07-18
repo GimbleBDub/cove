@@ -1,0 +1,51 @@
+server:
+  port: ${SERVER_PORT:8099}
+
+spring:
+  application:
+    name: cove
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cove
+    username: ${DB_USERNAME:cms}
+    password: ${DB_PASSWORD:cc3721b}
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  mail:
+    host: mail.gimble.co.bw
+    port: 465
+    username: support@gimble.co.bw
+    name: Cove
+    password: 'Kp)w{Y,Oq^-Z,D%2'
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          socketFactory:
+            port: 465
+            class: javax.net.ssl.SSLSocketFactory
+            fallback: false
+          starttls:
+            enable: false
+        from: support@gimble.co.bw
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev_J6vN9pQ2xR8LmW4zTcY7KaE5HsU1FnBdP3ZwQ9RgXmV2cLfN8yAhS6kJe4Ut}
+    access-ttl-seconds: 900
+  base-url: http://localhost:8080
+  mail:
+    from: support@gimble.co.bw
+  password-reset:
+    frontend-url: http://localhost:8080
