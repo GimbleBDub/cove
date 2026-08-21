@@ -12,11 +12,16 @@ import bw.co.gimble.cove.role.RoleStatus;
 import bw.co.gimble.cove.role.UserRoleRepository;
 import bw.co.gimble.cove.role.UserRoleService;
 import bw.co.gimble.cove.security.AuthPrincipal;
+import bw.co.gimble.cove.storage.StorageService;
+import bw.co.gimble.cove.storage.dto.FileValidation;
+import bw.co.gimble.cove.storage.dto.UploadedFile;
+import bw.co.gimble.cove.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +45,7 @@ public class OrganisationService {
     private final UserRoleService userRoleService;
     private final PermissionService permissionService;
     private final ApplicationEventPublisher eventPublisher;
+    private final StorageService storageService;
 
     // ─── CREATE / READ ──────────────────────────────────────────
 
@@ -88,6 +94,22 @@ public class OrganisationService {
     @Transactional(readOnly = true)
     public OrganisationResponse get(UUID organisationId) {
         return map(getOrThrow(organisationId));
+    }
+
+    /** Admin-only. Replaces any existing logo. */
+    public OrganisationResponse updateLogo(UUID organisationId, MultipartFile file) {
+        UUID userId = currentUserId();
+        Organisation organisation = getOrThrow(organisationId);
+
+        if (!permissionService.canManageOrg(userId, organisationId)) {
+            throw ApiException.forbidden(ErrorCode.ORG_ROLE_FORBIDDEN, "Only an admin of this organisation can change its logo");
+        }
+
+        FileValidation.requireImage(file);
+        UploadedFile uploaded = storageService.uploadOrganisationLogo(organisationId, file);
+        organisation.setLogoUrl(uploaded.publicUrl());
+
+        return map(organisation);
     }
 
     /** Simple name search over discoverable organisations - what a user sees before deciding to join one. */
@@ -268,12 +290,13 @@ public class OrganisationService {
     private OrganisationResponse map(Organisation o) {
         return new OrganisationResponse(
                 o.getId(), o.getName(), o.getSlug(), o.getTypes(), o.getVerificationStatus(),
-                o.getDescription(), o.getEmail(), o.getPhone(), o.getWebsite(), o.isDiscoverable(), o.getCreatedAt()
+                o.getDescription(), o.getEmail(), o.getPhone(), o.getWebsite(), o.getLogoUrl(),
+                o.isDiscoverable(), o.getCreatedAt()
         );
     }
 
     private OrganisationSummaryResponse mapSummary(Organisation o) {
-        return new OrganisationSummaryResponse(o.getId(), o.getName(), o.getSlug(), o.getTypes(), o.getVerificationStatus());
+        return new OrganisationSummaryResponse(o.getId(), o.getName(), o.getSlug(), o.getTypes(), o.getVerificationStatus(), o.getLogoUrl());
     }
 
     private JoinRequestResponse map(OrganisationJoinRequest r, String organisationName) {
@@ -281,5 +304,35 @@ public class OrganisationService {
                 r.getId(), r.getOrganisationId(), organisationName, r.getUserId(), r.getRequestedRole(),
                 r.getMessage(), r.getStatus(), r.getReviewedByUserId(), r.getReviewedAt(), r.getRejectionReason(), r.getCreatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganisationSummaryResponse> listPendingVerification() {
+        requirePlatformAdmin();
+        return organisationRepository.findByVerificationStatus(OrgVerificationStatus.UNDER_REVIEW)
+                .stream().map(this::mapSummary).toList();
+    }
+
+    public OrganisationResponse verify(UUID organisationId) {
+        requirePlatformAdmin();
+        Organisation organisation = getOrThrow(organisationId);
+        if (organisation.getVerificationStatus() == OrgVerificationStatus.VERIFIED) {
+            throw ApiException.conflict(ErrorCode.ORGANISATION_ALREADY_DECIDED, "This organisation is already verified");
+        }
+        organisation.setVerificationStatus(OrgVerificationStatus.VERIFIED);
+        return map(organisation);
+    }
+
+    public OrganisationResponse rejectVerification(UUID organisationId) {
+        requirePlatformAdmin();
+        Organisation organisation = getOrThrow(organisationId);
+        organisation.setVerificationStatus(OrgVerificationStatus.REJECTED);
+        return map(organisation);
+    }
+
+    private void requirePlatformAdmin() {
+        if (!permissionService.isPlatformAdmin(currentUserId())) {
+            throw ApiException.forbidden(ErrorCode.PLATFORM_ADMIN_ONLY, "Only a platform admin can do this");
+        }
     }
 }

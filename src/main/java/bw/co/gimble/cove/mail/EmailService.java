@@ -23,5 +23,13 @@ public class EmailService  {
     public void sendOtpEmail(String toEmail, String otpCode) {
         mailDispatchService.send(emailTemplateService.buildOtpMail(toEmail, otpCode));
     }
+
+    public void sendVerificationEmail(String toEmail, String verificationCode) {
+        mailDispatchService.send(emailTemplateService.buildVerificationMail(toEmail, verificationCode));
+    }
+
+    public void sendWelcomeEmail(String toEmail) {
+        mailDispatchService.send(emailTemplateService.buildWelcomeMail(toEmail));
+    }
 }
 

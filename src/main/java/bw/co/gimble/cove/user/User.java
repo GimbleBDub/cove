@@ -8,11 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Identity only. Deliberately holds NO role/organisations fields - a user's access is
- * entirely described by their UserRole rows, since one person can hold
- * different roles at different organisations (or none).
- */
 @Getter
 @Setter
 @Entity
@@ -39,12 +34,15 @@ public class User extends Auditable {
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
 
-    /** Bumped on password change / forced logout so old JWTs can be rejected. */
+
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    @Builder.Default
+    private boolean phoneVerified = false;
+
     @Column(nullable = false)
     @Builder.Default
     private int tokenVersion = 0;
-
-    @Column(nullable = false)
-    private boolean verified = false;
 
 }

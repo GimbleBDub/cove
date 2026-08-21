@@ -1,13 +1,12 @@
 package bw.co.gimble.cove.profile.controllers;
 
-import bw.co.gimble.cove.profile.dto.kyc.CreateKycRequest;
-import bw.co.gimble.cove.profile.dto.kyc.KycResponse;
-import bw.co.gimble.cove.profile.dto.kyc.KycSummaryResponse;
-import bw.co.gimble.cove.profile.dto.kyc.UpdateKycRequest;
+import bw.co.gimble.cove.profile.dto.kyc.*;
 import bw.co.gimble.cove.profile.services.KycService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -29,21 +28,44 @@ public class KycController {
         return kycService.get(id);
     }
 
-    @PostMapping
+    /**
+     * Multipart: "file" part is the document itself (jpg/png/pdf), "metadata" part is
+     * a JSON body matching CreateKycRequest.
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public KycResponse create(
-            @Valid @RequestBody CreateKycRequest request) {
-        return kycService.create(request);
+            @RequestPart("file") MultipartFile file,
+            @Valid @RequestPart("metadata") CreateKycRequest request) {
+        return kycService.create(file, request);
     }
 
-    @PutMapping("/{id}")
+    /** "file" part is optional here - omit it to update metadata only and keep the existing document. */
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public KycResponse update(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateKycRequest request) {
-        return kycService.update(id, request);
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @Valid @RequestPart("metadata") UpdateKycRequest request) {
+        return kycService.update(id, file, request);
     }
 
     @GetMapping("/status")
     public KycSummaryResponse summary() {
         return kycService.getSummary();
+    }
+
+    @GetMapping("/admin/pending")
+    public List<KycResponse> pending() {
+        return kycService.listPending();
+    }
+
+    @PostMapping("/{id}/verify")
+    public KycResponse verify(@PathVariable UUID id) {
+        return kycService.verify(id);
+    }
+
+    @PostMapping("/{id}/reject")
+    public KycResponse reject(@PathVariable UUID id, @RequestBody(required = false) ReviewKycRequest request) {
+        var reason = request != null ? request.rejectionReason() : null;
+        return kycService.reject(id, reason);
     }
 }

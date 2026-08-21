@@ -37,7 +37,7 @@ public class Organisation extends Auditable {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private OrgVerificationStatus verificationStatus = OrgVerificationStatus.UNVERIFIED;
+    private OrgVerificationStatus verificationStatus = OrgVerificationStatus.UNDER_REVIEW;
 
     private String description;
 
@@ -46,6 +46,9 @@ public class Organisation extends Auditable {
     private String phone;
 
     private String website;
+
+    /** Public bucket URL - set via POST /api/organisations/{id}/logo, not on create/update. */
+    private String logoUrl;
 
     /** Anyone can find and request to join by default; an org can hide itself from search. */
     @Column(nullable = false)

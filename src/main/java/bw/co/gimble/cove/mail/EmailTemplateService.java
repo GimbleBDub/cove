@@ -23,7 +23,7 @@ public class EmailTemplateService {
         ctx.setVariable("resetUrl", baseUrl + "/reset-password?token=" + rawToken);
         ctx.setVariable("year", Year.now().getValue());
 
-        String body = templateEngine.process("email/password-reset", ctx);
+        String body = templateEngine.process("password-reset", ctx);
 
         return new SendMailRequest(
                 recipientEmail, null, null,
@@ -36,7 +36,7 @@ public class EmailTemplateService {
         ctx.setVariable("firstName", firstName);
         ctx.setVariable("year", Year.now().getValue());
 
-        String body = templateEngine.process("email/password-changed", ctx);
+        String body = templateEngine.process("password-changed", ctx);
 
         return new SendMailRequest(
                 recipientEmail, null, null,
@@ -49,11 +49,36 @@ public class EmailTemplateService {
         ctx.setVariable("otpCode", otpCode);
         ctx.setVariable("year", Year.now().getValue());
 
-        String body = templateEngine.process("email/otp", ctx);
+        String body = templateEngine.process("otp", ctx);
 
         return new SendMailRequest(
                 recipientEmail, null, null,
                 "Your one-time login code", body
+        );
+    }
+
+    public SendMailRequest buildVerificationMail(String recipientEmail, String verificationCode) {
+        Context ctx = new Context();
+        ctx.setVariable("verificationCode", verificationCode);
+        ctx.setVariable("year", Year.now().getValue());
+
+        String body = templateEngine.process("verify-email", ctx);
+
+        return new SendMailRequest(
+                recipientEmail, null, null,
+                "Verify your Cove account", body
+        );
+    }
+
+    public SendMailRequest buildWelcomeMail(String recipientEmail) {
+        Context ctx = new Context();
+        ctx.setVariable("year", Year.now().getValue());
+
+        String body = templateEngine.process("welcome", ctx);
+
+        return new SendMailRequest(
+                recipientEmail, null, null,
+                "Welcome to Cove", body
         );
     }
 }

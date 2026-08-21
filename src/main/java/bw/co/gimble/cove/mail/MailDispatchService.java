@@ -37,7 +37,7 @@ public class MailDispatchService {
             helper.setText(request.body(), true);
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send email to {}: {}", request.to(), e.getMessage(), e);
+            log.error("Failed to send templates to {}: {}", request.to(), e.getMessage(), e);
         }
     }
 }

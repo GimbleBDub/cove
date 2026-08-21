@@ -6,11 +6,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Deliberately thin - only identity, no roles baked in. Roles/permissions are
- * always resolved fresh from the DB via PermissionService, never trusted from
- * the token, so a revoked role takes effect immediately rather than at token expiry.
- */
 @Getter
 public class AuthPrincipal extends UsernamePasswordAuthenticationToken {
 

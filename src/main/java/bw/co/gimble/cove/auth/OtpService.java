@@ -10,7 +10,7 @@ import java.time.Duration;
 
 /**
  * One-time login codes, stored in Redis - single-use, short TTL, no relational value,
- * same reasoning as refresh tokens and password reset tokens. Key: auth:otp:{email}.
+ * same reasoning as refresh tokens and password reset tokens. Key: auth:otp:{templates}.
  */
 @Service
 @RequiredArgsConstructor

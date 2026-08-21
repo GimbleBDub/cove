@@ -27,7 +27,6 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
 
     long countByOrganisationIdAndRoleAndStatus(UUID organisationId, Role role, RoleStatus status);
 
-    /** Distinct organisation ids the user currently holds an active role at (personal roles have null org). */
     @Query("select distinct r.organisationId from UserRole r " +
             "where r.userId = :userId and r.status = :status and r.organisationId is not null")
     List<UUID> findDistinctOrganisationIdsByUserIdAndStatus(@Param("userId") UUID userId, @Param("status") RoleStatus status);

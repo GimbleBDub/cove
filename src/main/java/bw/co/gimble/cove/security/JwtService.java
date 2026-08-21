@@ -12,12 +12,6 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
-/**
- * Access tokens are short-lived and carry ONLY identity (userId, email, tokenVersion).
- * No roles are embedded - see AuthPrincipal for why. Refresh tokens are opaque,
- * random, stored hashed server-side (not implemented here - swap in a
- * RefreshTokenRepository when you add persistence for it).
- */
 @Service
 public class JwtService {
 
@@ -35,7 +29,7 @@ public class JwtService {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
-                .claim("email", email)
+                .claim("templates", email)
                 .claim("tv", tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(accessTokenTtlSeconds)))

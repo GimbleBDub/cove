@@ -17,9 +17,8 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<AuthResponse>> signup(@Valid @RequestBody SignupRequest request) {
-        AuthResponse response = authService.signup(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
+    public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(authService.signup(request)));
     }
 
     /** Step 1 of login: verifies credentials, emails a one-time code. */
@@ -60,5 +59,15 @@ public class AuthController {
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetService.resetPassword(request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.verifyEmail(request)));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<SimpleMessageResponse>> resendVerification(@Valid @RequestBody ResendOtpRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.resendVerification(request)));
     }
 }

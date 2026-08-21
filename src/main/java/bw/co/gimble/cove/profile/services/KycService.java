@@ -10,13 +10,20 @@ import bw.co.gimble.cove.profile.dto.kyc.UpdateKycRequest;
 import bw.co.gimble.cove.profile.models.UserKyc;
 import bw.co.gimble.cove.profile.repositories.UserKycRepository;
 import bw.co.gimble.cove.profile.enums.KycStatus;
+import bw.co.gimble.cove.storage.StorageService;
+import bw.co.gimble.cove.storage.dto.FileValidation;
+import bw.co.gimble.cove.storage.dto.UploadedFile;
 import bw.co.gimble.cove.user.User;
 import bw.co.gimble.cove.user.UserRepository;
+import bw.co.gimble.cove.common.ErrorCode;
+import bw.co.gimble.cove.permission.PermissionService;
+import bw.co.gimble.cove.security.AuthPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Objects;
@@ -30,8 +37,8 @@ public class KycService {
     private final UserKycRepository repository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
-
-
+    private final StorageService storageService;
+    private final PermissionService permissionService;
 
     @Transactional(readOnly=true)
     public List<KycResponse> getMyDocuments(){
@@ -57,15 +64,20 @@ public class KycService {
         return map(kyc);
     }
 
-    public KycResponse create(CreateKycRequest request){
+    /** file is the raw upload; request carries only metadata (see CreateKycRequest). */
+    public KycResponse create(MultipartFile file, CreateKycRequest request){
 
         User user = getCurrentUser();
 
+        FileValidation.requireKycDocument(file);
+        UploadedFile uploaded = storageService.uploadKycDocument(user.getId(), file);
 
         UserKyc kyc = UserKyc.builder()
                 .user(user)
                 .documentType(request.documentType())
-                .fileUrl(request.fileUrl())
+                // The bucket KEY is stored, not a URL - KYC docs are private, so a usable
+                // link only ever exists as a freshly-generated presigned URL (see map()).
+                .fileUrl(uploaded.key())
                 .documentNumber(request.documentNumber())
                 .issueDate(request.issueDate())
                 .expiryDate(request.expiryDate())
@@ -117,8 +129,10 @@ public class KycService {
         );
     }
 
+    /** file is optional - omit it to update metadata only and keep the previously uploaded document. */
     public KycResponse update(
             UUID id,
+            MultipartFile file,
             UpdateKycRequest request){
 
         User user = getCurrentUser();
@@ -131,10 +145,17 @@ public class KycService {
 
 
         kyc.setDocumentType(request.documentType());
-        kyc.setFileUrl(request.fileUrl());
         kyc.setDocumentNumber(request.documentNumber());
         kyc.setIssueDate(request.issueDate());
         kyc.setExpiryDate(request.expiryDate());
+
+        if (file != null && !file.isEmpty()) {
+            FileValidation.requireKycDocument(file);
+            String previousKey = kyc.getFileUrl();
+            UploadedFile uploaded = storageService.uploadKycDocument(user.getId(), file);
+            kyc.setFileUrl(uploaded.key());
+            storageService.deleteKycDocument(previousKey);
+        }
 
         // force re-validation
         kyc.setStatus(KycStatus.PENDING);
@@ -167,7 +188,9 @@ public class KycService {
                 kyc.getId(),
                 kyc.getDocumentType(),
                 kyc.getStatus(),
-                kyc.getFileUrl(),
+                // Resolved fresh on every read - never persisted, and expires after
+                // app.storage.presigned-url-ttl-minutes.
+                storageService.presignKycDocumentUrl(kyc.getFileUrl()),
                 kyc.getDocumentNumber(),
                 kyc.getIssueDate(),
                 kyc.getExpiryDate(),
@@ -178,5 +201,54 @@ public class KycService {
                 kyc.getCreatedAt(),
                 kyc.getUpdatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<KycResponse> listPending() {
+        requirePlatformAdmin();
+        return repository.findByStatusIn(List.of(KycStatus.PENDING, KycStatus.UNDER_REVIEW))
+                .stream().map(this::map).toList();
+    }
+
+    public KycResponse verify(UUID id) {
+        return review(id, KycStatus.VERIFIED, null);
+    }
+
+    public KycResponse reject(UUID id, String reason) {
+        return review(id, KycStatus.REJECTED, reason);
+    }
+
+    private KycResponse review(UUID id, KycStatus newStatus, String rejectionReason) {
+        UUID adminId = requirePlatformAdmin();
+
+        UserKyc kyc = repository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("KYC document not found"));
+
+        if (kyc.getStatus() == KycStatus.VERIFIED || kyc.getStatus() == KycStatus.REJECTED) {
+            throw ApiException.conflict(bw.co.gimble.cove.common.ErrorCode.KYC_ALREADY_DECIDED,
+                    "This document has already been reviewed");
+        }
+
+        kyc.setStatus(newStatus);
+        if (newStatus == KycStatus.VERIFIED) {
+            kyc.setVerifiedAt(java.time.LocalDate.now());
+            kyc.setVerifiedBy(adminId.toString());
+        } else {
+            kyc.setRejectedAt(java.time.LocalDate.now());
+            kyc.setRejectionReason(rejectionReason);
+        }
+
+        return map(kyc);
+    }
+
+    private UUID requirePlatformAdmin() {
+        Object auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof AuthPrincipal principal)) {
+            throw ApiException.unauthorized(ErrorCode.AUTH_TOKEN_INVALID, "Not authenticated");
+        }
+        if (!permissionService.isPlatformAdmin(principal.getUserId())) {
+            throw ApiException.forbidden(ErrorCode.PLATFORM_ADMIN_ONLY, "Only a platform admin can do this");
+        }
+        return principal.getUserId();
     }
 }

@@ -5,8 +5,10 @@ import bw.co.gimble.cove.organisations.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +46,13 @@ public class OrganisationController {
     public ResponseEntity<ApiResponse<OrganisationResponse>> update(
             @PathVariable UUID organisationId, @Valid @RequestBody UpdateOrganisationRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(organisationService.update(organisationId, request)));
+    }
+
+    /** Admin-only. */
+    @PutMapping(value = "/{organisationId}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<OrganisationResponse>> updateLogo(
+            @PathVariable UUID organisationId, @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(ApiResponse.ok(organisationService.updateLogo(organisationId, file)));
     }
 
     // ─── join requests ──────────────────────────────────────────
@@ -87,5 +96,20 @@ public class OrganisationController {
             @RequestBody(required = false) ReviewJoinRequestRequest request) {
         var reason = request != null ? request.rejectionReason() : null;
         return ResponseEntity.ok(ApiResponse.ok(organisationService.reject(organisationId, requestId, reason)));
+    }
+
+    @GetMapping("/admin/pending-verification")
+    public ResponseEntity<ApiResponse<List<OrganisationSummaryResponse>>> pendingVerification() {
+        return ResponseEntity.ok(ApiResponse.ok(organisationService.listPendingVerification()));
+    }
+
+    @PostMapping("/{organisationId}/verify")
+    public ResponseEntity<ApiResponse<OrganisationResponse>> verify(@PathVariable UUID organisationId) {
+        return ResponseEntity.ok(ApiResponse.ok(organisationService.verify(organisationId)));
+    }
+
+    @PostMapping("/{organisationId}/reject-verification")
+    public ResponseEntity<ApiResponse<OrganisationResponse>> rejectVerification(@PathVariable UUID organisationId) {
+        return ResponseEntity.ok(ApiResponse.ok(organisationService.rejectVerification(organisationId)));
     }
 }

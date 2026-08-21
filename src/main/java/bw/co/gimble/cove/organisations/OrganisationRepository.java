@@ -13,4 +13,6 @@ public interface OrganisationRepository extends JpaRepository<Organisation, UUID
     List<Organisation> findByNameContainingIgnoreCase(String name);
 
     boolean existsByNameIgnoreCase(String name);
+
+    List<Organisation> findByVerificationStatus(OrgVerificationStatus status);
 }

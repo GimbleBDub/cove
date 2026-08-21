@@ -6,10 +6,12 @@ import bw.co.gimble.cove.organisations.OrgVerificationStatus;
 import java.util.List;
 import java.util.UUID;
 
+/** Lightweight shape for search/browse results - no contact details. */
 public record OrganisationSummaryResponse(
         UUID id,
         String name,
         String slug,
         List<OrgType> types,
-        OrgVerificationStatus verificationStatus
+        OrgVerificationStatus verificationStatus,
+        String logoUrl
 ) {}

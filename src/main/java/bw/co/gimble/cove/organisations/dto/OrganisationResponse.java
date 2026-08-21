@@ -17,6 +17,7 @@ public record OrganisationResponse(
         String email,
         String phone,
         String website,
+        String logoUrl,
         boolean discoverable,
         Instant createdAt
 ) {}

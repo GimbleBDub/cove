@@ -46,7 +46,7 @@ public class PasswordResetService {
 
 
         if (userOpt.isEmpty()) {
-            log.debug("Password reset requested for an email with no matching account");
+            log.debug("Password reset requested for an templates with no matching account");
             return;
         }
 

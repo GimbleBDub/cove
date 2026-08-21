@@ -5,6 +5,9 @@ import bw.co.gimble.cove.common.ApiException;
 import bw.co.gimble.cove.common.ErrorCode;
 import bw.co.gimble.cove.events.UserRegisteredEvent;
 import bw.co.gimble.cove.mail.EmailService;
+import bw.co.gimble.cove.profile.models.UserProfile;
+import bw.co.gimble.cove.profile.repositories.UserProfileRepository;
+import bw.co.gimble.cove.profile.services.ProfileService;
 import bw.co.gimble.cove.security.JwtService;
 import bw.co.gimble.cove.user.User;
 import bw.co.gimble.cove.user.UserRepository;
@@ -16,12 +19,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class  AuthService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
@@ -32,45 +38,88 @@ public class AuthService {
     // ─── SIGNUP ─────────────────────────────────────────────────
 
     @Transactional
-    public AuthResponse signup(SignupRequest request) {
+    public SignupResponse signup(SignupRequest request) {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
-            throw ApiException.conflict(ErrorCode.EMAIL_ALREADY_REGISTERED, "An account with this email already exists");
+            throw ApiException.conflict(ErrorCode.EMAIL_ALREADY_REGISTERED, "An account with this templates already exists");
         }
 
         User user = User.builder()
                 .email(request.email().toLowerCase())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .phone(request.phone())
+                .emailVerified(false)
+                .phoneVerified(false)
                 .build();
         user = userRepository.save(user);
 
-        log.info("New account registered: {}", user.getEmail());
+        String code = otpService.generateAndStore("EMAIL_VERIFY:" + user.getEmail());
+        emailService.sendVerificationEmail(user.getEmail(), code);
 
-        // Deliberately fired here, not in a listener downstream of login - signup is the
-        // one moment we know for certain this is a brand-new account.
         eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
+
+        return SignupResponse.builder()
+                .userId(user.getId())
+                .email(user.getEmail())
+                .message("Verification code sent to your templates.")
+                .build();
+    }
+
+    @Transactional
+    public AuthResponse verifyEmail(VerifyEmailRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.email())
+                .orElseThrow(() -> ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials"));
+
+        log.info("request: {}", request);
+        if (!otpService.verify("EMAIL_VERIFY:" + user.getEmail(), request.code())) {
+            throw ApiException.unauthorized(ErrorCode.AUTH_INVALID_OTP, "Invalid or expired verification code");
+        }
+
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        Optional<UserProfile> userProfile = userProfileRepository.findByUserId(user.getId());
+
+        emailService.sendWelcomeEmail(user.getEmail());
 
         return buildAuthResponse(user, refreshTokenService.issueNew(user));
     }
 
-    // ─── LOGIN (password check → email OTP → tokens) ───────────
+    public SimpleMessageResponse resendVerification(ResendOtpRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.email())
+                .orElseThrow(() -> ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid credentials"));
 
-    /** Step 1: verifies credentials, sends a one-time code to the account's email. */
+        if (user.isEmailVerified()) {
+            throw ApiException.conflict(ErrorCode.ALREADY_VERIFIED, "This account is already verified");
+        }
+
+        String code = otpService.generateAndStore("EMAIL_VERIFY:" + user.getEmail());
+        emailService.sendVerificationEmail(user.getEmail(), code);
+
+        return new SimpleMessageResponse("Verification code resent.");
+    }
+
+    // ─── LOGIN (password check → templates OTP → tokens) ───────────
+
+    /** Step 1: verifies credentials, sends a one-time code to the account's templates. */
     public LoginAttemptResponse initiateLogin(LoginRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid email or password"));
+                .orElseThrow(() -> ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid templates or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid email or password");
+            throw ApiException.unauthorized(ErrorCode.AUTH_INVALID_CREDENTIALS, "Invalid templates or password");
         }
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw ApiException.forbidden(ErrorCode.AUTH_ACCOUNT_DISABLED, "This account is not active");
         }
 
-        String otp = otpService.generateAndStore(user.getEmail());
-        emailService.sendOtpEmail(user.getEmail(), otp);
+        if (!user.isEmailVerified() && !user.isPhoneVerified()) {
+            throw ApiException.forbidden(ErrorCode.ACCOUNT_NOT_VERIFIED,
+                    "Please verify your templates or phone number before logging in");
+        }
 
+        String otp = otpService.generateAndStore(request.email());
+        emailService.sendOtpEmail(user.getEmail(), otp);
         return new LoginAttemptResponse(true);
     }
 

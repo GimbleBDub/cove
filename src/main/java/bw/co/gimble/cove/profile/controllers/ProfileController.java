@@ -7,7 +7,9 @@ import bw.co.gimble.cove.profile.dto.profile.UserProfileResponse;
 import bw.co.gimble.cove.profile.services.ProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/profile")
@@ -31,6 +33,11 @@ public class ProfileController {
     public UserProfileResponse update(
             @Valid @RequestBody UpdateProfileRequest request) {
         return profileService.update(request);
+    }
+
+    @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserProfileResponse uploadPhoto(@RequestPart("file") MultipartFile file) {
+        return profileService.uploadPhoto(file);
     }
 
     @GetMapping("/completed")

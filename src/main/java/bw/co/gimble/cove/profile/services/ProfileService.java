@@ -7,6 +7,9 @@ import bw.co.gimble.cove.profile.dto.profile.UpdateProfileRequest;
 import bw.co.gimble.cove.profile.dto.profile.UserProfileResponse;
 import bw.co.gimble.cove.profile.models.UserProfile;
 import bw.co.gimble.cove.profile.repositories.UserProfileRepository;
+import bw.co.gimble.cove.storage.StorageService;
+import bw.co.gimble.cove.storage.dto.FileValidation;
+import bw.co.gimble.cove.storage.dto.UploadedFile;
 import bw.co.gimble.cove.user.User;
 import bw.co.gimble.cove.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class ProfileService {
 
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
 
     @Transactional(readOnly = true)
@@ -71,6 +76,24 @@ public class ProfileService {
 
 
         return map(userProfileRepository.save(profile));
+    }
+
+
+    /** Requires a profile to already exist - create one first via POST /api/profile. */
+    public UserProfileResponse uploadPhoto(MultipartFile file) {
+
+        User user = getCurrentUser();
+
+        UserProfile profile = userProfileRepository
+                .findByUserId(user.getId())
+                .orElseThrow(() ->
+                        ApiException.notFound("Create your profile before uploading a photo"));
+
+        FileValidation.requireImage(file);
+        UploadedFile uploaded = storageService.uploadProfilePhoto(user.getId(), file);
+        profile.setProfilePhoto(uploaded.publicUrl());
+
+        return map(profile);
     }
 
 

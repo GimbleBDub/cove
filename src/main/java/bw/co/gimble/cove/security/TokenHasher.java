@@ -8,12 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-/**
- * Generates opaque bearer tokens (refresh tokens, password reset tokens) and hashes
- * them for storage. We never persist the raw token - only its SHA-256 hash - so a
- * database leak alone doesn't hand out usable tokens. The raw value is returned to
- * the client exactly once, at issuance.
- */
 @Component
 public class TokenHasher {
 

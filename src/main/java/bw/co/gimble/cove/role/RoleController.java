@@ -20,20 +20,17 @@ public class RoleController {
 
     private final UserRoleService userRoleService;
 
-    /** All active roles held by the current user, across all organisations plus any personal ones. */
     @GetMapping("/mine")
     public ResponseEntity<ApiResponse<List<RoleResponse>>> mine() {
         return ResponseEntity.ok(ApiResponse.ok(userRoleService.myRoles()));
     }
 
-    /** Self-service: OWNER / TENANT / BUYER. No approval needed - you just start acting in that capacity. */
     @PostMapping("/personal")
     public ResponseEntity<ApiResponse<RoleResponse>> assignPersonalRole(@Valid @RequestBody AssignPersonalRoleRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(userRoleService.assignPersonalRole(request.role())));
     }
 
-    /** Org-admin only: grant AGENT / PROPERTY_MANAGER / ORG_STAFF / AGENCY_ADMIN to a member. */
     @PostMapping("/organisations/{organisationId}")
     public ResponseEntity<ApiResponse<RoleResponse>> assignOrgRole(
             @PathVariable UUID organisationId, @Valid @RequestBody AssignOrgRoleRequest request) {
@@ -47,7 +44,6 @@ public class RoleController {
         return ResponseEntity.noContent().build();
     }
 
-    /** Members (or platform admin) can list who holds a role at an organisation. */
     @GetMapping("/organisations/{organisationId}")
     public ResponseEntity<ApiResponse<List<RoleResponse>>> listOrgMembers(@PathVariable UUID organisationId) {
         return ResponseEntity.ok(ApiResponse.ok(userRoleService.listOrgMembers(organisationId)));

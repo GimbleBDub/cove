@@ -20,11 +20,7 @@ public class NotificationEventListener {
     private final NotificationService notificationService;
     private final UserRoleRepository userRoleRepository;
 
-    // Listeners fire only after the publishing transaction commits, so a notification is
-    // never created for a signup/role-grant/etc. that ultimately rolled back.
-
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onUserRegistered(UserRegisteredEvent event) {
         notificationService.create(
                 event.userId(),
@@ -37,7 +33,6 @@ public class NotificationEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onOrganisationCreated(OrganisationCreatedEvent event) {
         notificationService.create(
                 event.createdByUserId(),
@@ -51,7 +46,6 @@ public class NotificationEventListener {
 
     /** Notify every active admin of the target org that someone wants to join. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onOrganisationJoinRequested(OrganisationJoinRequestedEvent event) {
         for (UserRole admin : userRoleRepository.findByOrganisationIdAndRoleAndStatus(
                 event.organisationId(), Role.AGENCY_ADMIN, RoleStatus.ACTIVE)) {
@@ -67,7 +61,6 @@ public class NotificationEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onOrganisationJoinReviewed(OrganisationJoinReviewedEvent event) {
         NotificationType type = event.approved()
                 ? NotificationType.ORGANISATION_JOIN_APPROVED
@@ -83,7 +76,6 @@ public class NotificationEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onRoleAssigned(RoleAssignedEvent event) {
         String scope = event.organisationId() != null ? " at " + event.organisationName() : "";
         notificationService.create(
@@ -97,7 +89,6 @@ public class NotificationEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onRoleRevoked(RoleRevokedEvent event) {
         String scope = event.organisationId() != null ? " at " + event.organisationName() : "";
         notificationService.create(
@@ -111,7 +102,6 @@ public class NotificationEventListener {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional
     public void onKycDocumentSubmitted(KycDocumentSubmittedEvent event) {
         notificationService.create(
                 event.userId(),

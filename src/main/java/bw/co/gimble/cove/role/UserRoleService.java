@@ -20,11 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * The ONLY place UserRole rows are created, granted or revoked. Organisation
- * creation and join-request approval both delegate here rather than writing
- * UserRole rows themselves, so this stays the single source of truth for access.
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -40,7 +35,6 @@ public class UserRoleService {
         return mapAll(userRoleRepository.findByUserIdAndStatus(currentUserId(), RoleStatus.ACTIVE));
     }
 
-    /** Self-service grant of a personal-capacity role (OWNER / TENANT / BUYER). No approval needed. */
     public RoleResponse assignPersonalRole(Role role) {
         UUID userId = currentUserId();
         assertAssignable(role);
@@ -68,7 +62,6 @@ public class UserRoleService {
         return map(userRole, null);
     }
 
-    /** Org-admin grant of an org-scoped role (AGENT, PROPERTY_MANAGER, ORG_STAFF, AGENCY_ADMIN). */
     public RoleResponse assignOrgRole(UUID organisationId, UUID targetUserId, Role role) {
         UUID actingUserId = currentUserId();
         Organisation org = organisationRepository.findById(organisationId)
@@ -102,13 +95,6 @@ public class UserRoleService {
         return map(userRole, org.getName());
     }
 
-    /**
-     * Grants AGENCY_ADMIN to the user who just created an organisation. Deliberately
-     * bypasses the normal canManageOrg() check in assignOrgRole - at this instant the
-     * organisation has no admins yet, so nobody could otherwise pass that check. Only
-     * OrganisationService.create() should call this, immediately after persisting the org,
-     * within the same transaction.
-     */
     public RoleResponse grantInitialOrgAdmin(UUID organisationId, UUID userId, String organisationName) {
         UserRole userRole = UserRole.builder()
                 .userId(userId)
