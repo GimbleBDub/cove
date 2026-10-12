@@ -16,6 +16,8 @@ public enum Role {
     PROPERTY_MANAGER(true),
     AGENT(true),
     ORG_STAFF(true),
+    VALUER(true),
+    AUCTIONEER(true),
 
     OWNER(false),
     TENANT(false),

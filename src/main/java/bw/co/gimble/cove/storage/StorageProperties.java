@@ -20,6 +20,8 @@ public class StorageProperties {
     private String profileBucket;
     private String organisationsBucket;
 
+    private String propertyMediaBucket;
+
     private String publicBaseUrl;
 
     private long presignedUrlTtlMinutes = 15;

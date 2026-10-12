@@ -57,8 +57,9 @@ public class EmailTemplateService {
         );
     }
 
-    public SendMailRequest buildVerificationMail(String recipientEmail, String verificationCode) {
+    public SendMailRequest buildVerificationMail(String recipientEmail, String verificationLink, String verificationCode) {
         Context ctx = new Context();
+        ctx.setVariable("verificationLink", verificationLink);
         ctx.setVariable("verificationCode", verificationCode);
         ctx.setVariable("year", Year.now().getValue());
 

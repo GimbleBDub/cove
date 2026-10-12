@@ -33,6 +33,9 @@ public record KycResponse(
 
         Instant createdAt,
 
-        Instant updatedAt
+        Instant updatedAt,
+
+        // Who submitted it - shown in the admin review queue.
+        String userEmail
 ) {
 }

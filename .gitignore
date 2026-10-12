@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local dev admin login (never commit)
+.admin-credentials.local

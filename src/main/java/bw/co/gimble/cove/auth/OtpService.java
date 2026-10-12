@@ -25,8 +25,12 @@ public class OtpService {
     private long otpTtlMinutes;
 
     public String generateAndStore(String email) {
+        return generateAndStore(email, Duration.ofMinutes(otpTtlMinutes));
+    }
+
+    public String generateAndStore(String keyPart, Duration ttl) {
         String otp = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
-        redisTemplate.opsForValue().set(key(email), otp, Duration.ofMinutes(otpTtlMinutes));
+        redisTemplate.opsForValue().set(key(keyPart), otp, ttl);
         return otp;
     }
 
@@ -38,6 +42,20 @@ public class OtpService {
         }
         redisTemplate.delete(key);
         return true;
+    }
+
+    public void storeValue(String redisKey, String value, Duration ttl) {
+        redisTemplate.opsForValue().set(OTP_PREFIX + redisKey.toLowerCase(), value, ttl);
+    }
+
+    public String consumeValue(String redisKey) {
+        String key = OTP_PREFIX + redisKey.toLowerCase();
+        String stored = redisTemplate.opsForValue().get(key);
+        if (stored == null) {
+            return null;
+        }
+        redisTemplate.delete(key);
+        return stored;
     }
 
     private String key(String email) {

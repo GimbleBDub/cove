@@ -27,6 +27,13 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
 
     long countByOrganisationIdAndRoleAndStatus(UUID organisationId, Role role, RoleStatus status);
 
+    long countByRoleAndOrganisationIdIsNullAndStatus(Role role, RoleStatus status);
+
+    @Query("select count(distinct r.userId) from UserRole r where r.organisationId = :organisationId and r.status = :status")
+    long countDistinctUsersByOrganisationIdAndStatus(@Param("organisationId") UUID organisationId, @Param("status") RoleStatus status);
+
+    java.util.Optional<UserRole> findByUserIdAndRoleAndOrganisationIdIsNullAndStatus(UUID userId, Role role, RoleStatus status);
+
     @Query("select distinct r.organisationId from UserRole r " +
             "where r.userId = :userId and r.status = :status and r.organisationId is not null")
     List<UUID> findDistinctOrganisationIdsByUserIdAndStatus(@Param("userId") UUID userId, @Param("status") RoleStatus status);

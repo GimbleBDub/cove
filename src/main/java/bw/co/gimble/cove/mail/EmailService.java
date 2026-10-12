@@ -24,8 +24,8 @@ public class EmailService  {
         mailDispatchService.send(emailTemplateService.buildOtpMail(toEmail, otpCode));
     }
 
-    public void sendVerificationEmail(String toEmail, String verificationCode) {
-        mailDispatchService.send(emailTemplateService.buildVerificationMail(toEmail, verificationCode));
+    public void sendVerificationEmail(String toEmail, String verificationLink, String verificationCode) {
+        mailDispatchService.send(emailTemplateService.buildVerificationMail(toEmail, verificationLink, verificationCode));
     }
 
     public void sendWelcomeEmail(String toEmail) {

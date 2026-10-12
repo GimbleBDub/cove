@@ -91,6 +91,18 @@ public class KycService {
         return map(kyc);
     }
 
+    public void delete(UUID id) {
+        User user = getCurrentUser();
+        UserKyc kyc = repository.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> ApiException.notFound("KYC document not found"));
+        if (kyc.getStatus() != KycStatus.PENDING) {
+            throw ApiException.conflict(ErrorCode.KYC_ALREADY_DECIDED,
+                    "Only documents awaiting review can be removed");
+        }
+        storageService.deleteKycDocument(kyc.getFileUrl());
+        repository.delete(kyc);
+    }
+
     @Transactional(readOnly = true)
     public KycSummaryResponse getSummary() {
 
@@ -199,13 +211,14 @@ public class KycService {
                 kyc.getRejectionReason(),
                 kyc.getVerifiedBy(),
                 kyc.getCreatedAt(),
-                kyc.getUpdatedAt()
+                kyc.getUpdatedAt(),
+                kyc.getUser() != null ? kyc.getUser().getEmail() : null
         );
     }
 
     @Transactional(readOnly = true)
     public List<KycResponse> listPending() {
-        requirePlatformAdmin();
+        permissionService.requireStaff(true, bw.co.gimble.cove.staff.StaffPermission.VERIFIER);
         return repository.findByStatusIn(List.of(KycStatus.PENDING, KycStatus.UNDER_REVIEW))
                 .stream().map(this::map).toList();
     }
@@ -242,13 +255,6 @@ public class KycService {
     }
 
     private UUID requirePlatformAdmin() {
-        Object auth = SecurityContextHolder.getContext().getAuthentication();
-        if (!(auth instanceof AuthPrincipal principal)) {
-            throw ApiException.unauthorized(ErrorCode.AUTH_TOKEN_INVALID, "Not authenticated");
-        }
-        if (!permissionService.isPlatformAdmin(principal.getUserId())) {
-            throw ApiException.forbidden(ErrorCode.PLATFORM_ADMIN_ONLY, "Only a platform admin can do this");
-        }
-        return principal.getUserId();
+        return permissionService.requireStaff(false, bw.co.gimble.cove.staff.StaffPermission.VERIFIER);
     }
 }

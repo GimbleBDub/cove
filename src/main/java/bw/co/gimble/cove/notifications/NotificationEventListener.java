@@ -8,7 +8,6 @@ import bw.co.gimble.cove.role.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -110,6 +109,68 @@ public class NotificationEventListener {
                 "Your " + event.documentType().name() + " has been submitted and is pending review.",
                 "KYC",
                 event.kycId()
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onListingPublished(ListingPublishedEvent event) {
+        notificationService.create(
+                event.actorUserId(),
+                NotificationType.LISTING_PUBLISHED,
+                "Listing published",
+                "Your " + event.purpose().name().toLowerCase() + " listing is now on the marketplace.",
+                "LISTING",
+                event.listingId()
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onLeadCreated(LeadCreatedEvent event) {
+        if (event.assignedAgentUserId() != null && !event.assignedAgentUserId().equals(event.inquirerUserId())) {
+            notificationService.create(
+                    event.assignedAgentUserId(),
+                    NotificationType.LEAD_CREATED,
+                    "New enquiry",
+                    "Someone enquired about one of your listings.",
+                    "LEAD",
+                    event.leadId()
+            );
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onViewingBooked(ViewingBookedEvent event) {
+        notificationService.create(
+                event.requestedByUserId(),
+                NotificationType.VIEWING_BOOKED,
+                "Viewing requested",
+                "Your viewing request has been sent.",
+                "VIEWING",
+                event.viewingId()
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onApplicationSubmitted(ApplicationSubmittedEvent event) {
+        notificationService.create(
+                event.applicantUserId(),
+                NotificationType.APPLICATION_SUBMITTED,
+                "Application submitted",
+                "Your application has been sent to the lister.",
+                "APPLICATION",
+                event.applicationId()
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onLeaseSigned(LeaseSignedEvent event) {
+        notificationService.create(
+                event.tenantUserId(),
+                NotificationType.LEASE_SIGNED,
+                "Lease signed",
+                "A lease was e-signed and the property moved under management.",
+                "LEASE",
+                event.leaseId()
         );
     }
 }

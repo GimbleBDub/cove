@@ -2,6 +2,12 @@ package bw.co.gimble.cove.profile.services;
 
 
 import bw.co.gimble.cove.common.ApiException;
+import bw.co.gimble.cove.common.ErrorCode;
+import bw.co.gimble.cove.permission.PermissionService;
+import bw.co.gimble.cove.profile.dto.profile.OnboardingContextResponse;
+import bw.co.gimble.cove.profile.enums.Gender;
+import java.time.LocalDate;
+import java.util.UUID;
 import bw.co.gimble.cove.profile.dto.profile.CreateProfileRequest;
 import bw.co.gimble.cove.profile.dto.profile.UpdateProfileRequest;
 import bw.co.gimble.cove.profile.dto.profile.UserProfileResponse;
@@ -27,6 +33,9 @@ public class ProfileService {
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final PermissionService permissionService;
+    private final bw.co.gimble.cove.role.UserRoleRepository userRoleRepository;
+    private final bw.co.gimble.cove.organisations.OrganisationRepository organisationRepository;
 
 
     @Transactional(readOnly = true)
@@ -50,6 +59,7 @@ public class ProfileService {
         if(userProfileRepository.existsByUserId(user.getId())) {
             throw ApiException.conflict(bw.co.gimble.cove.common.ErrorCode.PROFILE_ALREADY_EXISTS, "Profile already exists");
         }
+        requirePersonalDetails(user, request.gender(), request.dateOfBirth());
 
 
         UserProfile profile = UserProfile.builder()
@@ -105,6 +115,7 @@ public class ProfileService {
                 .findByUserId(user.getId())
                 .orElseThrow(() ->
                         ApiException.notFound("Profile not found"));
+        requirePersonalDetails(user, request.gender(), request.dateOfBirth());
 
 
         profile.setFirstName(request.firstName());
@@ -117,7 +128,8 @@ public class ProfileService {
         profile.setPassportNumber(request.passportNumber());
         profile.setNationality(request.nationality());
         profile.setOccupation(request.occupation());
-        profile.setProfilePhoto(request.profilePhoto());
+        // The photo is normally set via POST /photo; don't wipe it when a form omits it.
+        if (request.profilePhoto() != null) profile.setProfilePhoto(request.profilePhoto());
         profile.setBio(request.bio());
         profile.setAddressLine1(request.addressLine1());
         profile.setAddressLine2(request.addressLine2());
@@ -130,6 +142,44 @@ public class ProfileService {
         return map(profile);
     }
 
+
+    /** What the client needs before the profile exists: whether it does, and whether onboarding is admin-lite. */
+    @Transactional(readOnly = true)
+    public OnboardingContextResponse onboardingContext() {
+        User user = getCurrentUser();
+        var profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
+        var roles = userRoleRepository.findByUserIdAndStatus(user.getId(), bw.co.gimble.cove.role.RoleStatus.ACTIVE);
+        var byOrg = new java.util.LinkedHashMap<UUID, java.util.List<String>>();
+        roles.stream().filter(r -> r.getOrganisationId() != null)
+                .forEach(r -> byOrg.computeIfAbsent(r.getOrganisationId(), k -> new java.util.ArrayList<>()).add(r.getRole().name()));
+        var organisations = byOrg.entrySet().stream()
+                .map(e -> organisationRepository.findById(e.getKey())
+                        .map(o -> new OnboardingContextResponse.OrganisationMembership(
+                                o.getId(), o.getName(), o.getVerificationStatus().name(), e.getValue(),
+                                e.getValue().contains("AGENCY_ADMIN")))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return new OnboardingContextResponse(
+                profile != null,
+                permissionService.isPlatformAdmin(user.getId()),
+                user.getEmail(),
+                permissionService.staffPermissions(user.getId()).stream().map(Enum::name).collect(java.util.stream.Collectors.toSet()),
+                user.isPasswordChangeRequired(),
+                profile != null ? profile.getFullName() : null,
+                organisations);
+    }
+
+    /** Platform admins only need names; everyone else must also give gender and date of birth. */
+    private void requirePersonalDetails(User user, Gender gender, LocalDate dateOfBirth) {
+        if (permissionService.isPlatformAdmin(user.getId())) return;
+        if (gender == null || dateOfBirth == null) {
+            throw ApiException.badRequest(ErrorCode.VALIDATION_FAILED, "Gender and date of birth are required");
+        }
+        if (dateOfBirth.isAfter(LocalDate.now().minusYears(16))) {
+            throw ApiException.badRequest(ErrorCode.VALIDATION_FAILED, "You must be at least 16 years old");
+        }
+    }
 
     @Transactional(readOnly = true)
     public boolean profileCompleted(){

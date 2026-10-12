@@ -2,7 +2,6 @@ package bw.co.gimble.cove.profile.dto.profile;
 
 import bw.co.gimble.cove.profile.enums.Gender;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
@@ -18,10 +17,9 @@ public record CreateProfileRequest(
 
         String preferredName,
 
-        @NotNull
+        // Required for regular users, optional for platform admins - enforced in ProfileService.
         Gender gender,
 
-        @NotNull
         LocalDate dateOfBirth,
 
         String nationalId,

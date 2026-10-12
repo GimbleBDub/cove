@@ -17,5 +17,7 @@ public record JoinRequestResponse(
         UUID reviewedByUserId,
         Instant reviewedAt,
         String rejectionReason,
-        Instant createdAt
+        Instant createdAt,
+        String userEmail,
+        String userName
 ) {}

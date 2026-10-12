@@ -21,21 +21,10 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(authService.signup(request)));
     }
 
-    /** Step 1 of login: verifies credentials, emails a one-time code. */
+    /** Step 1 of login: verifies credentials and issues tokens once email is verified. */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginAttemptResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.initiateLogin(request)));
-    }
-
-    /** Step 2 of login: verifies the code, issues access + refresh tokens. */
-    @PostMapping("/login/verify-otp")
-    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.completeLogin(request)));
-    }
-
-    @PostMapping("/login/resend-otp")
-    public ResponseEntity<ApiResponse<SimpleMessageResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.resendOtp(request)));
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.login(request)));
     }
 
     @PostMapping("/refresh")
@@ -46,6 +35,13 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Signed-in password change; also clears the "must change temporary password" flag. */
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody bw.co.gimble.cove.auth.dto.ChangePasswordRequest request) {
+        authService.changePassword(request);
         return ResponseEntity.noContent().build();
     }
 
@@ -62,8 +58,18 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+    public ResponseEntity<ApiResponse<SimpleMessageResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(authService.verifyEmail(request)));
+    }
+
+    @GetMapping("/verify-email-link")
+    public org.springframework.web.servlet.view.RedirectView verifyEmailLinkGet(@RequestParam String token) {
+        return new org.springframework.web.servlet.view.RedirectView(authService.webVerifyRedirect(token));
+    }
+
+    @PostMapping("/verify-email-link")
+    public ResponseEntity<ApiResponse<SimpleMessageResponse>> verifyEmailLink(@Valid @RequestBody EmailLinkRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.verifyEmailLink(request)));
     }
 
     @PostMapping("/resend-verification")

@@ -45,4 +45,17 @@ public class User extends Auditable {
     @Builder.Default
     private int tokenVersion = 0;
 
+
+    /** Only meaningful for staff (users with the global PLATFORM_ADMIN role). */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_staff_permissions", joinColumns = @JoinColumn(name = "user_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permission", nullable = false)
+    @Builder.Default
+    private java.util.Set<bw.co.gimble.cove.staff.StaffPermission> staffPermissions = new java.util.HashSet<>();
+
+    /** Set for accounts created with a temporary password (staff, invited company members). */
+    @Column(name = "password_change_required", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean passwordChangeRequired = false;
 }

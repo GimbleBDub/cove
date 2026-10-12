@@ -51,12 +51,21 @@
 
         <div class="content">
             <h1>Verify your account</h1>
-            <p class="lead">Welcome to Cove. Enter this code in the app to confirm your email and activate your account.</p>
+            <p class="lead">Welcome to Cove. Click the button below to confirm your email. After that you can log in and start listing or browsing property.</p>
 
+            <a th:href="${verificationLink}" href="#"
+               style="display:inline-block;background:#059669;color:#FFFFFF;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:12px;margin-bottom:28px;">
+                Verify my email
+            </a>
+
+            <p class="lead">If the button doesn't work, copy this link into your browser:</p>
+            <p style="font-size:12px;color:#065F46;word-break:break-all;" th:text="${verificationLink}"></p>
+
+            <p class="lead">Or enter this code in the app:</p>
             <div class="code-box">
                 <span class="code" th:text="${verificationCode}">000000</span>
             </div>
-            <div class="expiry">Expires in 30 minutes</div>
+            <div class="expiry">The link and code expire in 24 hours</div>
 
             <div class="alert">
                 <span class="alert-label">Why we ask</span>

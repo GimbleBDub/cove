@@ -15,7 +15,6 @@ import bw.co.gimble.cove.security.AuthPrincipal;
 import bw.co.gimble.cove.storage.StorageService;
 import bw.co.gimble.cove.storage.dto.FileValidation;
 import bw.co.gimble.cove.storage.dto.UploadedFile;
-import bw.co.gimble.cove.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,6 +38,8 @@ import java.util.UUID;
 @Transactional
 public class OrganisationService {
 
+    private final bw.co.gimble.cove.user.UserRepository joinRequestUsers;
+    private final bw.co.gimble.cove.profile.repositories.UserProfileRepository joinRequestProfiles;
     private final OrganisationRepository organisationRepository;
     private final OrganisationJoinRequestRepository joinRequestRepository;
     private final UserRoleRepository userRoleRepository;
@@ -302,7 +303,9 @@ public class OrganisationService {
     private JoinRequestResponse map(OrganisationJoinRequest r, String organisationName) {
         return new JoinRequestResponse(
                 r.getId(), r.getOrganisationId(), organisationName, r.getUserId(), r.getRequestedRole(),
-                r.getMessage(), r.getStatus(), r.getReviewedByUserId(), r.getReviewedAt(), r.getRejectionReason(), r.getCreatedAt()
+                r.getMessage(), r.getStatus(), r.getReviewedByUserId(), r.getReviewedAt(), r.getRejectionReason(), r.getCreatedAt(),
+                joinRequestUsers.findById(r.getUserId()).map(bw.co.gimble.cove.user.User::getEmail).orElse(null),
+                joinRequestProfiles.findByUserId(r.getUserId()).map(bw.co.gimble.cove.profile.models.UserProfile::getFullName).orElse(null)
         );
     }
 
@@ -331,8 +334,6 @@ public class OrganisationService {
     }
 
     private void requirePlatformAdmin() {
-        if (!permissionService.isPlatformAdmin(currentUserId())) {
-            throw ApiException.forbidden(ErrorCode.PLATFORM_ADMIN_ONLY, "Only a platform admin can do this");
-        }
+        permissionService.requireStaff(false, bw.co.gimble.cove.staff.StaffPermission.VERIFIER);
     }
 }
